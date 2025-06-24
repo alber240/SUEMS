@@ -1,0 +1,16 @@
+# .gitignore
+
+# Virtual environment
+suems-env/
+
+# Python stuff
+__pycache__/
+*.pyc
+
+# Django DB or secret files
+db.sqlite3
+*.log
+
+# VS Code or IDE settings
+.vscode/
+.idea/
