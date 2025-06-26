@@ -124,7 +124,7 @@ async function fetchPastEvents() {
       return;
     }
 
-    container.innerHTML = ""; // clear existing
+    container.innerHTML = "";
 
     events.forEach(event => {
       const card = document.createElement("div");
@@ -132,14 +132,22 @@ async function fetchPastEvents() {
       card.innerHTML = `
         <h3>${event.title}</h3>
         <p>${event.description}</p>
-        <p><strong>Date:</strong> ${new Date(event.timestamp).toLocaleDateString()}</p>
+        <p><strong>Date:</strong> ${new Date(event.created_at).toLocaleDateString()}</p>
 
         ${event.document ? `<a class="download-link" href="${event.document}" target="_blank">📄 Download Report</a>` : ""}
-        ${event.image ? `<img src="${event.image}" alt="Event Image">` : ""}
+
+        ${event.images && event.images.length > 0 
+          ? event.images.map(img => `<img src="${img.image_url}" alt="Event Image">`).join('')
+          : ""
+        }
 
         <div class="reaction-buttons">
-          <button class="like-btn" onclick="sendReaction(${event.id}, 'like')">👍 Like (${event.likes_count})</button>
-          <button class="dislike-btn" onclick="sendReaction(${event.id}, 'dislike')">👎 Dislike (${event.dislikes_count})</button>
+          <button id="like-btn-${event.id}" class="like-btn" onclick="sendReaction(${event.id}, 'like')">
+            👍 Like (${event.likes_count})
+          </button>
+          <button id="dislike-btn-${event.id}" class="dislike-btn" onclick="sendReaction(${event.id}, 'dislike')">
+            👎 Dislike (${event.dislikes_count})
+          </button>
         </div>
 
         <div class="comment-section">
@@ -149,37 +157,41 @@ async function fetchPastEvents() {
         </div>
       `;
       container.appendChild(card);
-
       fetchComments(event.id);
     });
 
   } catch (err) {
     console.error("Error loading past events:", err);
+    document.getElementById("past-events-container").innerHTML = "<p>Error loading events.</p>";
   }
 }
 
 async function sendReaction(eventId, type) {
   try {
-    const is_like = (type === 'like');
-
-    await fetch(`http://127.0.0.1:8000/api/event/${eventId}/react/`, {
+    const res = await fetch(`http://127.0.0.1:8000/api/event/${eventId}/react/`, {
       method: "POST",
       headers: {
         "Authorization": `Token ${token}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ is_like })
+      body: JSON.stringify({ reaction: type })
     });
 
-    fetchPastEvents(); // refresh counts
+    const data = await res.json(); // expects updated counts
+
+    // update only the button labels
+    document.getElementById(`like-btn-${eventId}`).innerHTML = `👍 Like (${data.likes_count})`;
+    document.getElementById(`dislike-btn-${eventId}`).innerHTML = `👎 Dislike (${data.dislikes_count})`;
+
   } catch (err) {
     alert("Error submitting reaction.");
+    console.error(err);
   }
 }
 
 async function postComment(eventId) {
-  const commentText = document.getElementById(`comment-${eventId}`).value;
-  if (!commentText.trim()) return;
+  const commentText = document.getElementById(`comment-${eventId}`).value.trim();
+  if (!commentText) return;
 
   try {
     await fetch(`http://127.0.0.1:8000/api/event/${eventId}/comment/`, {
@@ -188,13 +200,14 @@ async function postComment(eventId) {
         "Authorization": `Token ${token}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ text: commentText.trim() })
+      body: JSON.stringify({ text: commentText })
     });
 
     document.getElementById(`comment-${eventId}`).value = "";
     fetchComments(eventId);
   } catch (err) {
     alert("Failed to post comment.");
+    console.error(err);
   }
 }
 
@@ -204,17 +217,16 @@ async function fetchComments(eventId) {
       headers: { "Authorization": `Token ${token}` }
     });
 
-    if (!res.ok) throw new Error("Server error");
-
     const comments = await res.json();
     const list = document.getElementById(`comments-${eventId}`);
-    list.innerHTML = comments.map(c => `<p><strong>${c.user.username}:</strong> ${c.text}</p>`).join('');
+    list.innerHTML = comments.length
+      ? comments.map(c => `<p><strong>${c.user.username}:</strong> ${c.text}</p>`).join('')
+      : "<p>No comments yet.</p>";
   } catch (err) {
     console.error("Error loading comments:", err);
+    document.getElementById(`comments-${eventId}`).innerHTML = "<p>Failed to load comments.</p>";
   }
 }
-
-
 
 fetchPastEvents();
 </script>

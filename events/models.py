@@ -65,26 +65,29 @@ class Feedback(models.Model):
         return f"Feedback by {self.user.username}"
 
 
+
 class PastEventPost(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='posts')
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    document = models.FileField(upload_to='post_event_docs/', blank=True, null=True)
-    image = models.ImageField(upload_to='post_event_images/', blank=True, null=True)
+    title = models.CharField(max_length=255)
+    description = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    document = models.FileField(upload_to='post_event_docs/', blank=True, null=True)
+    posted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
-        return f"{self.title} ({self.event.title})"
+        return self.title
 
 
+class PastEventPostImage(models.Model):
+    post = models.ForeignKey(PastEventPost, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='post_event_images/')
+
+    def __str__(self):
+        return f"Image for {self.post.title}"
 class PostComment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     event_post = models.ForeignKey(PastEventPost, on_delete=models.CASCADE)
     text = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
-
-
 
 class PostReaction(models.Model):
     REACTION_CHOICES = [
