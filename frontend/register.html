@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title id="pageTitle">Event Registration - SUEMS</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { font-family: Arial; padding: 2rem; background: #f0f4f8; }
+    form { background: #fff; padding: 2rem; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    label, select, input, textarea { display: block; width: 100%; margin: 1rem 0; padding: 0.5rem; }
+    button { padding: 0.8rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .success { color: green; }
+    .error { color: red; }
+    .top-bar { background: #003366; color: white; padding: 1rem; text-align: center; margin-bottom: 2rem; }
+    .top-bar span { font-weight: bold; }
+    .logout { float: right; color: white; text-decoration: underline; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div class="top-bar">
+  Logged in as: <span id="usernameDisplay">Loading...</span>
+  <span class="logout" onclick="logout()">Logout</span>
+</div>
+
+<div style="text-align:center; margin-bottom: 1rem;">
+  <h2 id="eventTitle">Event Registration</h2>
+  <p id="eventDescription" style="font-size: 1rem; color: #555;"></p>
+</div>
+
+<form id="registrationForm">
+  <!-- Hidden Event ID -->
+  <input type="hidden" id="event_id" name="event_id" />
+
+  <label for="name">Full Name</label>
+  <input type="text" id="name" name="name" required />
+
+  <label for="email">Email Address</label>
+  <input type="email" id="email" name="email" required />
+
+  <label for="phone">Phone Number</label>
+  <input type="text" id="phone" name="phone" required />
+
+  <label for="nationality">Nationality</label>
+  <select id="nationality" name="nationality" required>
+    <option value="">Select</option>
+    <option value="Rwandan">Rwandan</option>
+    <option value="International">International</option>
+  </select>
+
+  <label for="role">Role</label>
+  <select id="role" name="role" required>
+    <option value="">Select</option>
+    <option value="student">Student</option>
+    <option value="staff">Staff</option>
+    <option value="admin">Administrator</option>
+    <option value="guild">Guild Council</option>
+  </select>
+
+  <label for="faculty">Faculty</label>
+  <select id="faculty" name="faculty">
+    <option value="">Select Faculty</option>
+    <option value="Applied Fundamental Sciences">Applied Fundamental Sciences</option>
+    <option value="Economics, Social Sciences & Management">Economics, Social Sciences & Management</option>
+    <option value="Education">Education</option>
+    <option value="Law & Public Administration">Law & Public Administration</option>
+    <option value="Health Sciences">Health Sciences</option>
+    <option value="Engineering & Technology">Engineering & Technology</option>
+  </select>
+
+  <label for="department">Department</label>
+  <input type="text" id="department" name="department" />
+
+  <label for="option">Program Option</label>
+  <input type="text" id="option" name="option" />
+
+  <label for="level">Level</label>
+  <select id="level" name="level">
+    <option value="">Select</option>
+    <option value="1">Level 1</option>
+    <option value="2">Level 2</option>
+    <option value="3">Level 3</option>
+    <option value="4">Level 4</option>
+  </select>
+
+  <label for="student_class">Class</label>
+  <input type="text" id="student_class" name="student_class" />
+
+  <label for="intake">Intake</label>
+  <select id="intake" name="intake">
+    <option value="">Select</option>
+    <option value="March">March</option>
+    <option value="July">July</option>
+    <option value="September">September</option>
+  </select>
+
+  <label for="comments">Comments / Suggestions</label>
+  <textarea id="comments" name="comments" rows="4"></textarea>
+
+  <button type="submit">Submit Registration</button>
+  <p id="responseMsg"></p>
+</form>
+
+<script>
+  // Display logged-in username
+  const username = localStorage.getItem("username");
+  document.getElementById("usernameDisplay").textContent = username ?? "Unknown User";
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = "index.html";
+  }
+
+  // Read URL parameters for event details
+  const params = new URLSearchParams(window.location.search);
+  const eventName = params.get("event_name");
+  const eventId = params.get("event_id");
+
+  if (eventName) {
+    document.getElementById("eventTitle").textContent = `Welcome to the ${decodeURIComponent(eventName)}`;
+  }
+
+  if (eventId) {
+    document.getElementById("event_id").value = eventId;
+
+    // Fetch event description from API
+    fetch(`http://127.0.0.1:8000/api/events/${eventId}/`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("eventDescription").textContent = data.description || '';
+      })
+      .catch(() => {
+        document.getElementById("eventDescription").textContent = "No description available.";
+      });
+  }
+
+  // Handle form submission
+  document.getElementById("registrationForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem("token");
+    const msg = document.getElementById("responseMsg");
+
+    if (!token) {
+      msg.textContent = "You must be logged in.";
+      msg.className = "error";
+      return;
+    }
+
+    const data = Object.fromEntries(new FormData(e.target));
+    data.event_id = eventId;
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/submit-registration/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Token ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+      msg.textContent = response.ok ? result.message || "Registration submitted!" : result.message || "Submission failed.";
+      msg.className = response.ok ? "success" : "error";
+
+      if (response.ok) e.target.reset();
+    } catch {
+      msg.textContent = "Network error.";
+      msg.className = "error";
+    }
+  });
+</script>
+</body>
+</html>

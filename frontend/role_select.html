@@ -1,0 +1,33 @@
+<!-- role_select.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Login Role - SUEMS</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Smart University Event Management System</h1>
+    <h2>Select Your Role to Login</h2>
+
+    <div class="role-buttons">
+      <button onclick="goTo('student')">Student</button>
+      <button onclick="goTo('staff')">Staff / Administrator</button>
+      <button onclick="goTo('other')">Other</button>
+    </div>
+  </div>
+
+  <script>
+    function goTo(role) {
+      if (role === 'student') {
+        window.location.href = 'student_login.html';
+      } else if (role === 'staff') {
+        window.location.href = 'staff_login.html';
+      } else {
+        window.location.href = 'others_login.html';
+      }
+    }
+  </script>
+</body>
+</html>

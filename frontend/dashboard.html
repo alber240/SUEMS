@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard - SUEMS</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f9ff;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #003366;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    .dashboard-container {
+      padding: 2rem;
+    }
+    .user-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .event-card {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .event-card h3 {
+      margin-top: 0;
+    }
+    .feedback-section, .post-events-section {
+      margin-top: 3rem;
+      background: #eaf3ff;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    .notification {
+      display: none;
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 4px;
+    }
+    .register-button, .logout-button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .logout-button {
+      background-color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Welcome to Smart University Event Management System</h1>
+  </header>
+
+  <div class="dashboard-container">
+    <div class="user-info">
+      <span id="usernameDisplay"></span>
+      <button class="logout-button" onclick="logout()">Logout</button>
+    </div>
+
+    <h2>Upcoming Events</h2>
+    <div id="events-container"></div>
+
+    <div class="feedback-section">
+      <h3>Feedback on Past Events</h3>
+      <textarea id="feedback" placeholder="Write your feedback here..." rows="4" style="width:100%;"></textarea>
+      <button class="register-button" onclick="submitFeedback()">Submit Feedback</button>
+    </div>
+
+    <div class="post-events-section">
+      <h3>Post Event Outcomes</h3>
+      <button class="register-button" onclick="window.location.href='post_event.html'">View Past Events</button>
+    </div>
+
+    <div id="notification" class="notification"></div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    const username = localStorage.getItem("username");
+    const notification = document.getElementById("notification");
+
+    // Redirect if not logged in
+    if (!token) {
+      alert("You must be logged in to view this page.");
+      window.location.href = "student_login.html";
+    }
+
+    // Display username or fallback
+    document.getElementById("usernameDisplay").textContent = username ? `Logged in as: ${username}` : "Logged in user";
+
+    // Load events from API
+    async function loadEvents() {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/events/", {
+          headers: {
+            Authorization: `Token ${token}`
+          }
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch events");
+
+        const events = await response.json();
+        const container = document.getElementById("events-container");
+        container.innerHTML = "";
+
+        events.forEach(event => {
+          const card = document.createElement("div");
+          card.className = "event-card";
+
+          // Encode event title safely for URL param
+          const encodedTitle = encodeURIComponent(event.title);
+
+          card.innerHTML = `
+            <h3>${event.title}</h3>
+            <p>${event.description || ""}</p>
+            <button class="register-button" onclick="registerForEvent(${event.id}, '${encodedTitle}')">Register</button>
+          `;
+          container.appendChild(card);
+        });
+
+      } catch (error) {
+        notification.textContent = "Failed to load events.";
+        notification.style.backgroundColor = "#f8d7da";
+        notification.style.color = "#721c24";
+        notification.style.display = "block";
+        console.error(error);
+      }
+    }
+
+    // Redirect to register page with event info
+    function registerForEvent(eventId, eventTitleEncoded) {
+      window.location.href = `register.html?event_id=${eventId}&event_name=${eventTitleEncoded}`;
+    }
+
+    // Submit feedback to API
+    async function submitFeedback() {
+      const feedback = document.getElementById("feedback").value.trim();
+      if (!feedback) return;
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/feedback/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Token ${token}`
+          },
+          body: JSON.stringify({ content: feedback })
+        });
+
+        const result = await response.json();
+
+        notification.textContent = result.message || "Feedback submitted.";
+        notification.style.backgroundColor = response.ok ? "#d4edda" : "#f8d7da";
+        notification.style.color = response.ok ? "#155724" : "#721c24";
+        notification.style.display = "block";
+
+        if (response.ok) {
+          document.getElementById("feedback").value = "";
+        }
+
+      } catch (err) {
+        notification.textContent = "Error submitting feedback.";
+        notification.style.backgroundColor = "#f8d7da";
+        notification.style.color = "#721c24";
+        notification.style.display = "block";
+        console.error(err);
+      }
+    }
+
+    // Logout user and clear storage
+    function logout() {
+      localStorage.clear();
+      window.location.href = "student_login.html";
+    }
+
+    window.onload = loadEvents;
+  </script>
+</body>
+</html>

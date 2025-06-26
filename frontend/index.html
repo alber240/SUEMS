@@ -1,15 +1,26 @@
-<!-- frontend/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>SUEMS - Event Listing</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <title>Smart University Event Management System</title>
+    <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <h1>Smart University Event Management System</h1>
-  <div id="event-list" class="event-container"></div>
+    <h1>Smart University Event Management System</h1>
 
-  <script src="script.js"></script>
+    <!-- Login Section -->
+    <div id="login-box">
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+
+    <!-- Event List Section -->
+    <div id="events-container"></div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification"></div>
+
+    <script src="./script.js"></script>
 </body>
 </html>

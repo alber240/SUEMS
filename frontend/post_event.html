@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Past Events - SUEMS</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f9ff;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #003366;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      position: relative;
+    }
+    .user-info {
+      position: absolute;
+      left: 1rem;
+      top: 1rem;
+      font-size: 0.9rem;
+    }
+    .logout-btn {
+      position: absolute;
+      right: 1rem;
+      top: 1rem;
+      background: crimson;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .container {
+      padding: 2rem;
+    }
+    .event-card {
+      background: white;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .event-card img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+    .comment-section {
+      margin-top: 1rem;
+    }
+    .comment-section textarea {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .comment-list {
+      background: #f0f0f0;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+    .reaction-buttons {
+      margin-top: 1rem;
+    }
+    .reaction-buttons button {
+      margin-right: 1rem;
+      padding: 0.3rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .like-btn { background: #28a745; color: white; }
+    .dislike-btn { background: #dc3545; color: white; }
+    .download-link {
+      margin-top: 0.5rem;
+      display: block;
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="user-info" id="usernameDisplay"></span>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+  <h1>Past Events</h1>
+</header>
+
+<div class="container" id="past-events-container">
+  <!-- Events will be rendered here -->
+</div>
+
+<script>
+const token = localStorage.getItem("token");
+const username = localStorage.getItem("username");
+
+if (!token) {
+  alert("Login required");
+  window.location.href = "student_login.html";
+}
+
+document.getElementById("usernameDisplay").textContent = `User: ${username}`;
+
+function logout() {
+  localStorage.clear();
+  window.location.href = "student_login.html";
+}
+
+async function fetchPastEvents() {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/past-events/", {
+      headers: { "Authorization": `Token ${token}` }
+    });
+    const events = await res.json();
+    const container = document.getElementById("past-events-container");
+
+    if (!events.length) {
+      container.innerHTML = "<p>No past events available.</p>";
+      return;
+    }
+
+    container.innerHTML = ""; // clear existing
+
+    events.forEach(event => {
+      const card = document.createElement("div");
+      card.className = "event-card";
+      card.innerHTML = `
+        <h3>${event.title}</h3>
+        <p>${event.description}</p>
+        <p><strong>Date:</strong> ${new Date(event.timestamp).toLocaleDateString()}</p>
+
+        ${event.document ? `<a class="download-link" href="${event.document}" target="_blank">📄 Download Report</a>` : ""}
+        ${event.image ? `<img src="${event.image}" alt="Event Image">` : ""}
+
+        <div class="reaction-buttons">
+          <button class="like-btn" onclick="sendReaction(${event.id}, 'like')">👍 Like (${event.likes_count})</button>
+          <button class="dislike-btn" onclick="sendReaction(${event.id}, 'dislike')">👎 Dislike (${event.dislikes_count})</button>
+        </div>
+
+        <div class="comment-section">
+          <textarea id="comment-${event.id}" placeholder="Write a comment..."></textarea>
+          <button onclick="postComment(${event.id})">Post Comment</button>
+          <div id="comments-${event.id}" class="comment-list">Loading comments...</div>
+        </div>
+      `;
+      container.appendChild(card);
+
+      fetchComments(event.id);
+    });
+
+  } catch (err) {
+    console.error("Error loading past events:", err);
+  }
+}
+
+async function sendReaction(eventId, type) {
+  try {
+    const is_like = (type === 'like');
+
+    await fetch(`http://127.0.0.1:8000/api/event/${eventId}/react/`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ is_like })
+    });
+
+    fetchPastEvents(); // refresh counts
+  } catch (err) {
+    alert("Error submitting reaction.");
+  }
+}
+
+async function postComment(eventId) {
+  const commentText = document.getElementById(`comment-${eventId}`).value;
+  if (!commentText.trim()) return;
+
+  try {
+    await fetch(`http://127.0.0.1:8000/api/event/${eventId}/comment/`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ text: commentText.trim() })
+    });
+
+    document.getElementById(`comment-${eventId}`).value = "";
+    fetchComments(eventId);
+  } catch (err) {
+    alert("Failed to post comment.");
+  }
+}
+
+async function fetchComments(eventId) {
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/api/event/${eventId}/comments/`, {
+      headers: { "Authorization": `Token ${token}` }
+    });
+
+    if (!res.ok) throw new Error("Server error");
+
+    const comments = await res.json();
+    const list = document.getElementById(`comments-${eventId}`);
+    list.innerHTML = comments.map(c => `<p><strong>${c.user.username}:</strong> ${c.text}</p>`).join('');
+  } catch (err) {
+    console.error("Error loading comments:", err);
+  }
+}
+
+
+
+fetchPastEvents();
+</script>
+
+</body>
+</html>
